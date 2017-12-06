@@ -1,0 +1,12 @@
+{
+  "name": "proxy-server",
+  "version": "1.0.0",
+  "description": "Project assignment for Network Systems and Services class",
+  "main": "src/ProxyServer.js",
+  "repository": "https://github.com/hejmsdz/node-proxy",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "bin/proxy"
+  }
+}

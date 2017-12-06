@@ -1,0 +1,16 @@
+#!/usr/bin/env nodejs
+const ProxyServer = require('../src/ProxyServer.js');
+
+let port = 8080;
+if (process.argv.length == 3) {
+  port = parseInt(process.argv[2]) || port;
+}
+
+ProxyServer.listen(port, () => {
+  console.log(`Listening on port ${port}. Press Ctrl+C to exit.`);
+
+  process.on('SIGINT', () => {
+    console.log('Closing the server.');
+    ProxyServer.close();
+  });
+});
