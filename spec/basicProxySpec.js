@@ -46,4 +46,21 @@ describe('Basic proxy server', () => {
       });
     });
   });
+
+  describe('GET request with a header', () => {
+    let req;
+    beforeAll(() => {
+      req = helpers.parseJSONs(Tester('localhost', port, 'http://httpbin.org/anything', {
+        Cookie: 'hello=world'
+      }));
+    });
+
+    it('passes the header correctly', (done) => {
+      req.then(([proxy, direct]) => {
+        console.log(direct.headers.Cookie);
+        expect(proxy.headers.Cookie).toEqual(direct.headers.Cookie);
+        done();
+      });
+    });
+  });
 });
