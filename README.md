@@ -15,7 +15,7 @@ e intenta a abrir alguna página sin HTTPS.
 
 ## Pruebas
 
-Para las pruebas utilizamos la herramienta [Jasmine](https://jasmine.github.io/2.1/introduction.html).
+Para las pruebas utilizamos la herramienta [Jasmine](https://jasmine.github.io/2.8/introduction.html).
 Hay que instalarla globalmente (`npm install -g jasmine`).
 Los *test cases* están en la carpeta `spec`, para arrancarlos usamos el comando `npm test`.
 
