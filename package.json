@@ -7,6 +7,10 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "bin/proxy"
+    "start": "bin/proxy",
+    "test": "jasmine"
+  },
+  "devDependencies": {
+    "jasmine": "^2.8.0"
   }
 }
