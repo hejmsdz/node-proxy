@@ -1,7 +1,12 @@
 const http = require('http');
 const { URL } = require('url');
-const ProxyServer = require('./ProxyServer.js');
 
+/**
+ * Send a HTTP request and return its result in form of a Promise.
+ * @param {Object} options parameters for http.request
+ * @param {string} body request body
+ * @returns {Promise.<Object.<string, http.ServerResponse>>}
+ */
 function httpPromise(options, body = '') {
   return new Promise((resolve, reject) => {
     const req = http.request(options, (res) => {
@@ -22,6 +27,16 @@ function httpPromise(options, body = '') {
   });
 }
 
+/**
+ * Perform the same HTTP request throught a proxy and directly
+ * @param {string} proxyHost 
+ * @param {number} proxyPort 
+ * @param {string} url 
+ * @param {object} headers 
+ * @param {object} moreOptions additional parameters for http.request
+ * @param {string} body request body
+ * @returns {Promise.<Array.<Object.<string, http.ServerResponse>>>}
+ */
 function testRequest(proxyHost, proxyPort, url, headers = {}, moreOptions = {}, body = '') {
   url = new URL(url);
   const proxyOptions = Object.assign({
