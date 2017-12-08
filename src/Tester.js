@@ -34,13 +34,13 @@ function testRequest(proxyHost, proxyPort, url, headers = {}, moreOptions = {}, 
     }, headers)
   }, moreOptions);
 
-  const directOptions = {
+  const directOptions = Object.assign({
     method: 'GET',
     host: url.host,
     port: url.proxy,
     path: url.href,
     headers: headers
-  };
+  }, moreOptions);
 
   return Promise.all([
     httpPromise(proxyOptions, body),
