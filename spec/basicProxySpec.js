@@ -63,6 +63,20 @@ describe('Basic proxy server', () => {
     });
   });
 
+  describe('response with a different status code', () => {
+    let req;
+    beforeAll(() => {
+      req = Tester('localhost', port, 'http://httpbin.org/status/404');
+    });
+
+    it('returns a correct status code', (done) => {
+      req.then(([proxy, direct]) => {
+        expect(proxy.res.statusCode).toEqual(direct.res.statusCode);
+        done();
+      });
+    });
+  });
+
   describe('POST request', () => {
     let req;
     beforeAll(() => {
