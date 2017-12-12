@@ -1,5 +1,6 @@
 const http = require('http');
 const { URL } = require('url');
+const CacheWriter = require('./CacheWriter');
 
 const ProxyServer = http.createServer((req, res) => {
   const url = new URL(req.url);
@@ -14,9 +15,8 @@ const ProxyServer = http.createServer((req, res) => {
 
   const proxy = http.request(options, function (proxyRes) {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res, {
-      end: true
-    });
+    proxyRes//.pipe(new CacheWriter(req.url, proxyRes), {end: true})
+      .pipe(res, {end: true});
   });
 
   req.pipe(proxy, {
