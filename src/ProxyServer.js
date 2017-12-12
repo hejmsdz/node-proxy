@@ -1,6 +1,7 @@
 const http = require('http');
 const { URL } = require('url');
 const CacheWriter = require('./CacheWriter');
+const IsCacheable = require('./IsCacheable');
 
 const ProxyServer = http.createServer((req, res) => {
   const url = new URL(req.url);
@@ -15,8 +16,14 @@ const ProxyServer = http.createServer((req, res) => {
 
   const proxy = http.request(options, function (proxyRes) {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes//.pipe(new CacheWriter(req.url, proxyRes), {end: true})
-      .pipe(res, {end: true});
+
+    let sendBack = proxyRes;
+    if (IsCacheable()) {
+      let cacheWriter = new CacheWriter(req.url, proxyRes);
+      sendBack = proxyRes.pipe(cacheWriter, {end: true});
+    }
+
+    sendBack.pipe(res, {end: true});
   });
 
   req.pipe(proxy, {
