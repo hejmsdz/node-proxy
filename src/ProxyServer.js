@@ -9,7 +9,6 @@ const ProxyServer = http.createServer((req, res) => {
     path: url.pathname,
     method: 'GET'
   };
-  console.log(url.href);
 
   const proxy = http.request(options, function (proxyRes) {
     proxyRes.pipe(res, {
