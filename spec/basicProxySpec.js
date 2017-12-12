@@ -57,8 +57,48 @@ describe('Basic proxy server', () => {
 
     it('passes the header correctly', (done) => {
       req.then(([proxy, direct]) => {
-        console.log(direct.headers.Cookie);
         expect(proxy.headers.Cookie).toEqual(direct.headers.Cookie);
+        done();
+      });
+    });
+  });
+
+  describe('response with a different status code', () => {
+    let req;
+    beforeAll(() => {
+      req = Tester('localhost', port, 'http://httpbin.org/status/404');
+    });
+
+    it('returns a correct status code', (done) => {
+      req.then(([proxy, direct]) => {
+        expect(proxy.res.statusCode).toEqual(direct.res.statusCode);
+        done();
+      });
+    });
+  });
+
+  describe('POST request', () => {
+    let req;
+    beforeAll(() => {
+      req = helpers.parseJSONs(Tester(
+        'localhost', port,
+        'http://httpbin.org/anything',
+        { 'Content-Type': 'application/x-www-form-urlencoded' },
+        { method: 'POST' },
+        'hello=world'
+      ));
+    });
+
+    it('uses the correct method', (done) => {
+      req.then(([proxy, direct]) => {
+        expect(proxy.method).toEqual(direct.method);
+        done();
+      });
+    });
+
+    it('passes the form data correctly', (done) => {
+      req.then(([proxy, direct]) => {
+        expect(proxy.form).toEqual(direct.form);
         done();
       });
     });
