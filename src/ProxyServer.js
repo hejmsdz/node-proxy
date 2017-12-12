@@ -5,13 +5,15 @@ const ProxyServer = http.createServer((req, res) => {
   const url = new URL(req.url);
   const options = {
     hostname: url.hostname,
-    port: 80,
-    path: url.pathname,
-    method: 'GET'
+    port: url.port,
+    path: url.pathname + url.search,
+    method: req.method,
+    headers: req.headers
   };
   console.log(url.href);
 
   const proxy = http.request(options, function (proxyRes) {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, {
       end: true
     });
