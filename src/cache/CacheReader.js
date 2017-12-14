@@ -1,6 +1,7 @@
 const fs = require('fs');
 const crypto = require('crypto');
 const CacheHelper = require('./CacheHelper');
+const Log = require('../Log.js');
 
 
 /**
@@ -11,7 +12,6 @@ class CacheReader {
     this.url = url;
     this.headersFilename = CacheHelper.fullFilename(url, '.headers');
     this.bodyFilename = CacheHelper.fullFilename(url, '.body');
-    console.log(this.bodyFilename);
   }
 
   /**
@@ -23,7 +23,7 @@ class CacheReader {
     fs.readFile(this.headersFilename, (err, headers) => {
       if(err) {
         fn(true, null);
-        console.log('Fehler beim Versuch die Headerdatei zu öffnen für die Seite: ' + this.url);
+        Log.logToFile('Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
       } else {
         fn(false, JSON.parse(headers));
       }
@@ -45,7 +45,6 @@ class CacheReader {
     if(fs.existsSync(this.headersFilename) && fs.existsSync(this.bodyFilename)) {
       return true;
     } else {
-      console.log('A requested file is not in the cache and is downloaded from the Origin server.')
       return false;
     }
   }

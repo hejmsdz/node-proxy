@@ -3,45 +3,61 @@ const { URL } = require('url');
 const CacheWriter = require('./cache/CacheWriter');
 const CacheReader = require('./cache/CacheReader');
 const IsCacheable = require('./cache/IsCacheable');
+const Log = require('./Log');
 const fs = require('fs');
 
-/* Configuration variables */
-const _DEBUG = true;
-
 const ProxyServer = http.createServer((req, res) => {
+  Log.logToFile('Client requested data.', req.url);
+
   const cacheReader = new CacheReader(req.url);
 
   /* Check if the requested file is already in the cache (no error) or react accordingly */
   cacheReader.useCache((err, cachedHeaders, cachedBodyStream) => {
     if(err) {
       /* Nothing found in the cache: Make a normal request */
+      Log.logToFile('Cannot use the cache. Data must be requested from the origin server.', req.url);
+
       requestServer(req, (originRes) => {
+        //res.writeHead(originRes.statusCode, originRes.headers);
         res.writeHead(200, originRes.headers);
         originRes.pipe(res, {end: true});
       });
-
-      if(_DEBUG) { console.log('Not possible to use a cache.'); }
     } else {
-      /* File found on the cache. Now lets find out if it is up-to-date via a conditional request which uses the ETag */
-      const etag = "swubn"; // Placeholder - Try all with httpbin.com/etag/swubn
+      /* File found on the cache. Now lets find out if it is up-to-date
+         (only possible when the header file contains information like the etag)
+         via a conditional request which uses the ETag */
 
-      requestServerCondicional(req, etag, (condOriginRes) => {
-        if(condOriginRes.statusCode == "200") {
-          /* Modified */
-          if(_DEBUG) { console.log('Cache is not up-to-date. Got files from origin server..'); }
+      Log.logToFile('Found data in the cache.', req.url);
 
-          res.writeHead(200, condOriginRes.headers);
-          condOriginRes.pipe(res, {end: true});
-        } else if(condOriginRes.statusCode == "304") {
-          /* Not Modified */
-          res.writeHead(200, cachedHeaders);
-          cachedBodyStream.pipe(res, {end: true});
+      if(cachedHeaders.hasOwnProperty('etag')) {
+        requestServerConditional(req, cachedHeaders.etag, (condOriginRes) => {
+          if(condOriginRes.statusCode == "200") {
+            /* Modified */
+            Log.logToFile('Cache is modified. Received updated files.', req.url);
 
-          if(_DEBUG) { console.log('Succesfully used a (not-modified) chached file.'); }
-        } else {
-          if(_DEBUG) { console.log('TODO: Theres something strange going on...'); }
-        }
-      });
+            res.writeHead(200, condOriginRes.headers);
+            //res.writeHead(condOriginRes.statusCode, condOriginRes.headers);
+            condOriginRes.pipe(res, {end: true});
+          } else if(condOriginRes.statusCode == "304") {
+            /* Not Modified */
+            res.writeHead(200, cachedHeaders); // Problem: The headers file dont save the statuscode. Should we use 200?
+            cachedBodyStream.pipe(res, {end: true});
+
+            Log.logToFile('Cache is not modified. Successfully used a cached file.', req.url);
+          } else {
+            Log.logToFile('TODO: React accordingly on a wrong statusCode.', req.url);
+          }
+        });
+      } else {
+        Log.logToFile('Want to make a conditional request, but not possible. Data must be requested from the origin server.',
+                req.url);
+
+        requestServer(req, (originRes) => {
+          //res.writeHead(originRes.statusCode, originRes.headers);
+          res.writeHead(200, originRes.headers);
+          originRes.pipe(res, {end: true});
+        });
+      }
     }
   });
 });
@@ -53,12 +69,13 @@ const ProxyServer = http.createServer((req, res) => {
  * @param {string} etag the etag for insterting in the header
  * @param {function} fn callback function
  */
-function requestServerCondicional(req, etag, fn) {
+function requestServerConditional(req, etag, fn) {
+  Log.logToFile('Send a conditional request to origin server.', req.url);
+
   if(IsCacheable()) {
     const url = new URL(req.url);
     const modHeaders = req.headers;
     modHeaders["If-None-Match"] = etag;
-    console.log("modified headers: " + JSON.stringify(modHeaders));
 
     const options = {
       hostname: url.hostname,
@@ -68,21 +85,19 @@ function requestServerCondicional(req, etag, fn) {
       headers: modHeaders
     };
 
-    if(_DEBUG) { console.log('Sending a GET condicional...'); }
-
     const proxy = http.request(options, (res) => {
       fn(res);
     });
 
-    proxy.on('error', (e) => {
-      console.error(`Problem with request: ${e.message}`);
+    proxy.on('error', (err) => {
+      Log.logToFile(`Problem with request: ${err.message}`, req.url);
     });
 
     proxy.end();
   } else {
     /* TODO */
-    /* could be possible that the method is not cachable.... */
-    console.log('todo: not possible to cache.');
+    /* It could be possible that the method is not cachable.... */
+    Log.logToFile('Todo: Not possible to cache.', req.url);
   }
 }
 
@@ -94,6 +109,8 @@ function requestServerCondicional(req, etag, fn) {
  * @returns {function} fn callback function
  */
 function requestServer(req, fn) {
+  Log.logToFile('Send a request to origin server.', req.url);
+
   const url = new URL(req.url);
   const options = {
     hostname: url.hostname,
@@ -103,28 +120,26 @@ function requestServer(req, fn) {
     headers: req.headers
   };
 
-  if(_DEBUG) { console.log(url.href); }
-
   const proxy = http.request(options, function (proxyRes) {
     let sendBack = proxyRes;
     if (IsCacheable()) {
       let cacheWriter = new CacheWriter(req.url, proxyRes);
       sendBack = proxyRes.pipe(cacheWriter, {end: true});
 
-      if(_DEBUG) { console.log('Cached sucessfully data from origin server.'); }
+      Log.logToFile('Cached successfully data from origin server.', req.url);
     }
 
     fn(sendBack);
   });
 
-  proxy.on('error', (e) => {
-    console.error(`Problem with request: ${e.message}`);
+  proxy.on('error', (err) => {
+    Log.logToFile(`Problem with request: ${err.message}`, req.url);
   });
 
   req.pipe(proxy, {
     end: true
   }).on('error', (err) => {
-      console.log(err);
+      Log.logToFile(`Problem with request: ${err.message}`, req.url);
   });
 }
 
