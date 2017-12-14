@@ -5,7 +5,7 @@ const Log = require('../Log.js');
 
 
 /**
- * A few useful features
+ * This class manages the access to cached files.
  */
 class CacheReader {
   constructor(url) {
@@ -15,17 +15,24 @@ class CacheReader {
   }
 
   /**
-   * Reads the correct header file.
-   * The content can be accessed via a callback function (fn).
-   * @param {function} fn callback function
-   **/
-  getHeaders(fn) {
+  * The callback function allows to access the cached header object.
+  *
+  * @callback cacheCallback
+  * @param {boolean} errorFlag
+  * @param {object} headersObject
+  **/
+
+  /**
+  * This function reads asynchronously the appropriate headers file.
+  * @param {headersCallback} cb - The callback function
+  **/
+  getHeaders(cb) {
     fs.readFile(this.headersFilename, (err, headers) => {
       if(err) {
-        fn(true, null);
+        cb(true, null);
         Log.logToFile('Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
       } else {
-        fn(false, JSON.parse(headers));
+        cb(false, JSON.parse(headers));
       }
     });
   }
@@ -49,29 +56,41 @@ class CacheReader {
     }
   }
 
+
   /**
-   * Tests if the file is cached.
-   * Structure of callback function: fn(err,cachedHeaders, cachedBodyStream)
-   * err is true if the file is not cached or there are other problems with loading the content.
+  * The callback function allows to access the header
+  * and body of a cached files or to react accordingly
+  * if no access is possible.
+  *
+  * Returns an error if the file is not cached or can not be accessed.
+  *
+  * @callback cacheCallback
+  * @param {boolean} errorFlag
+  * @param {object} headersObject
+  * @param {readStream} bodyReadStream
+  **/
+
+  /**
+   * This function tries to access a cached file and executes the callback on completion.
+   * @param {cacheCallback} cb - The callback that handles the access.
    **/
-  useCache(fn) {
+  useCache(cb) {
     if(this.isCached()) {
       this.getHeaders((err, headers) => {
         if(err) {
-          fn(true,null,null);
-          return;
+          cb(true,null,null);
         } else {
           const bodyStream = this.getBodyStream();
           bodyStream.on('error', (err) => {
-            fn(true, null, null);
+            cb(true, null, null);
             return;
-          })
+          });
 
-          fn(false, headers, bodyStream);
+          cb(false, headers, bodyStream);
         }
       });
     } else {
-      fn(true, null, null);
+      cb(true, null, null);
       return;
     }
   }

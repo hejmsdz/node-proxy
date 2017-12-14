@@ -6,8 +6,14 @@ const IsCacheable = require('./cache/IsCacheable');
 const Log = require('./Log');
 const fs = require('fs');
 
+/**
+ * The proxy server retrieves requests from clients, forwards them to
+ * a remote server, and returns a response to the client. In this process,
+ * the proxy server can act as a cache server and cache certain data.
+ **/
 const ProxyServer = http.createServer((req, res) => {
   Log.logToFile('Client requested data.', req.url);
+  Log.logToConsole('Client requested data.', req.url);
 
   const cacheReader = new CacheReader(req.url);
 
@@ -18,32 +24,43 @@ const ProxyServer = http.createServer((req, res) => {
       Log.logToFile('Cannot use the cache. Data must be requested from the origin server.', req.url);
 
       requestServer(req, (originRes) => {
-        //res.writeHead(originRes.statusCode, originRes.headers);
+        /* Send data to client */
         res.writeHead(200, originRes.headers);
+        //res.writeHead(originRes.statusCode, originRes.headers);
         originRes.pipe(res, {end: true});
+
+        Log.logToFile('Reply sent to client.', req.url);
       });
     } else {
       /* File found on the cache. Now lets find out if it is up-to-date
-         (only possible when the header file contains information like the etag)
          via a conditional request which uses the ETag */
 
       Log.logToFile('Found data in the cache.', req.url);
 
+      /* Conditional request only possible when the headers file contains
+         information like the etag because the actuality can of course only
+         be checked if we have something to compare. */
       if(cachedHeaders.hasOwnProperty('etag')) {
         requestServerConditional(req, cachedHeaders.etag, (condOriginRes) => {
           if(condOriginRes.statusCode == "200") {
             /* Modified */
             Log.logToFile('Cache is modified. Received updated files.', req.url);
 
+            /* Send data to client */
             res.writeHead(200, condOriginRes.headers);
             //res.writeHead(condOriginRes.statusCode, condOriginRes.headers);
             condOriginRes.pipe(res, {end: true});
+
+            Log.logToFile('Reply sent to client.', req.url);
           } else if(condOriginRes.statusCode == "304") {
             /* Not Modified */
+            Log.logToFile('Cache is not modified.', req.url);
+
+            /* Send data to client */
             res.writeHead(200, cachedHeaders); // Problem: The headers file dont save the statuscode. Should we use 200?
             cachedBodyStream.pipe(res, {end: true});
 
-            Log.logToFile('Cache is not modified. Successfully used a cached file.', req.url);
+            Log.logToFile('Cached reply sent to client.', req.url);
           } else {
             Log.logToFile('TODO: React accordingly on a wrong statusCode.', req.url);
           }
@@ -53,8 +70,9 @@ const ProxyServer = http.createServer((req, res) => {
                 req.url);
 
         requestServer(req, (originRes) => {
-          //res.writeHead(originRes.statusCode, originRes.headers);
+          /* Send data to client */
           res.writeHead(200, originRes.headers);
+          //res.writeHead(originRes.statusCode, originRes.headers);
           originRes.pipe(res, {end: true});
         });
       }
@@ -93,7 +111,7 @@ function requestServerConditional(req, etag, fn) {
       Log.logToFile(`Problem with request: ${err.message}`, req.url);
     });
 
-    proxy.end();
+    proxy.end(); // TODO
   } else {
     /* TODO */
     /* It could be possible that the method is not cachable.... */
@@ -121,15 +139,15 @@ function requestServer(req, fn) {
   };
 
   const proxy = http.request(options, function (proxyRes) {
-    let sendBack = proxyRes;
+    //let sendBack = proxyRes;
     if (IsCacheable()) {
       let cacheWriter = new CacheWriter(req.url, proxyRes);
-      sendBack = proxyRes.pipe(cacheWriter, {end: true});
+      sendBack = proxyRes.pipe(cacheWriter, {end: false});
 
       Log.logToFile('Cached successfully data from origin server.', req.url);
     }
 
-    fn(sendBack);
+    fn(proxyRes);
   });
 
   proxy.on('error', (err) => {

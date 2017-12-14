@@ -37,6 +37,9 @@ class CacheWriter extends Transform {
   _createOutFile() {
     const bodyFilename = CacheHelper.fullFilename(this.url, '.body');
     this.outFile = fs.createWriteStream(bodyFilename);
+    this.outFile.on('errer', (err) => {
+      console.log(err);
+    })
   }
 
   _transform(chunk, encoding, callback) {
