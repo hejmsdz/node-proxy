@@ -2,7 +2,7 @@
 
 const program = require('commander');
 const ProxyServer = require('../src/ProxyServer.js');
-const Config = require('../src/Config.js');
+const fs = require('fs');
 
 let port = 8080;
 
@@ -16,45 +16,35 @@ program
   .option('-r, --reverse', 'Use proxy as reverse proxy')
   .parse(process.argv);
 
-ProxyServer.on('error', (err) => {
-  console.log('[Error] There was a fatal error.');
-  ProxyServer.close();
-});
-
-function startServer(port) {
-  if(program.port) {
-    port = program.port;
-    if(port < 1024) {
-      console.log('[ERROR] As a general rule processes running without root privileges cannot bind to ports below 1024. Please use another port.')
-      process.exit(1);
-    }
+if(program.port) {
+  port = program.port;
+  if(port < 1024) {
+    console.log('[ERROR] As a general rule processes running without root privileges cannot bind to ports below 1024. Please use another port.')
+    process.exit(1);
   }
+}
 
-  ProxyServer.listen(port, () => {
-    console.log(`Listening on port ${port}. Press Ctrl+C to exit.`);
+if(program.cache) {
+  // TODO
+}
 
-    process.on('SIGINT', () => {
-      console.log('\nClosing the server.');
-      ProxyServer.close();
-    });
-  });
+if(program.reverse) {
+  // TODO
 }
 
 /**
- * Load the configuration and after that start the server.
+ * Start the proxy server
  **/
-const config = new Config();
+ProxyServer.listen(port, () => {
+  console.log(`Listening on port ${port}. Press Ctrl+C to exit.`);
 
-if(program.cache) {
-  config.set('server.useCache', true, (err) => {
-    if(err) { console.error('Cannot read configuration.'); process.exit(1); }
+  process.on('SIGINT', () => {
+    console.log('\nClosing the server.');
+    ProxyServer.close();
   });
-}
+});
 
-config.get('server.port', (err, value) => {
-  if(err) { console.error('Cannot read configuration.'); process.exit(1); }
-
-  port = value;
-
-  startServer(port); // TODO: This is wrong here. There should be something like a event which is triggered when all GETs are answered.
+ProxyServer.on('error', (err) => {
+  console.log('[Error] There was a fatal error.');
+  ProxyServer.close();
 });

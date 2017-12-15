@@ -3,8 +3,6 @@ const chalk = require('chalk');
 
 /**
  * The class Log allows to create log messages.
- * These can be output on the console or in log files.
- * Facilitates error handling.
  **/
 class Log {
   constructor(writeableStream) {
@@ -77,9 +75,5 @@ class Log {
     this.writableStream.write(this.createMessage(this.successPrefix, message, url));
   }
 }
-
-/* Some useful variables */
-Log.filePrefix = `${__dirname}/../logs/`;
-Log.fileSuffix = '.log';
 
 module.exports = Log;

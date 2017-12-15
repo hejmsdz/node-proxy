@@ -5,15 +5,20 @@ const CacheReader = require('./cache/CacheReader');
 const IsCacheable = require('./cache/IsCacheable');
 const Log = require('./Log');
 const fs = require('fs');
-const Config = require('./Config.js');
+const rootFolder = require('app-root-path');
 
 
-const logger = new Log(process.stdout);
 
 
-/* Configuration variables. Will be overwritten by config file.
-   But if the end-user typed something wrong than use our default
-   values. */
+const logFile = fs.createWriteStream(
+                `${rootFolder}/logs/logs.log`,
+                {flag: 'w'});
+const logger = new Log(logFile);
+
+
+
+
+/* Configuration variables. */
 let useCache = false;
 let isReverse = false;
 let cacheConfig = {
@@ -23,40 +28,6 @@ let cacheConfig = {
 };
 
 
-
-
-/* Read the configuration file and save config as variables. */
-const config = new Config();
-
-const configPathsServer = [
-  'server.useCache',
-  'server.isReverse'
-];
-
-const configPathsCache = [
-  'cache.headerFileSuffix',
-  'cache.bodyFileSuffix',
-  'cache.folder'
-];
-
-config.get(configPathsServer, (err, values) => {
-  if(err) {
-    logger.error('Unable to read configuration file.');
-  } else {
-    useCache = values['server.useCache'];
-    isReverse = values['server.isReserve'];
-  }
-});
-
-config.get(configPathsCache, (err, values) => {
-  if(err) {
-    logger.error('Unable to read configuration file.');
-  } else {
-    cacheConfig.headerFileSuffix = values['cache.headerFileSuffix'];
-    cacheConfig.bodyFileSuffix = values['cache.bodyFileSuffix'];
-    cacheConfig.folder = values['cache.folder'];
-  }
-});
 
 
 
@@ -80,10 +51,10 @@ const ProxyServer = http.createServer((req, res) => {
 
         requestServer(req, (originRes) => {
           /* Send data to client */
-          res.writeHead(200, originRes.headers);
-          //res.writeHead(originRes.statusCode, originRes.headers);
+          res.writeHead(originRes.statusCode, originRes.headers);
           originRes.pipe(res, {end: true});
 
+          logger.debug(originRes.statusCode);
           logger.success('Reply sent to client.', req.url);
         });
       } else {
@@ -102,9 +73,8 @@ const ProxyServer = http.createServer((req, res) => {
               logger.info('Cache is modified. Received updated files.', req.url);
 
               /* Send data to client */
-              res.writeHead(200, condOriginRes.headers);
               logger.debug(condOriginRes.statusCode);
-              //res.writeHead(condOriginRes.statusCode, condOriginRes.headers);
+              res.writeHead(condOriginRes.statusCode, condOriginRes.headers); // NOT TESTED YET
               condOriginRes.pipe(res, {end: true});
 
               logger.success('Reply sent to client.', req.url);
@@ -122,13 +92,14 @@ const ProxyServer = http.createServer((req, res) => {
             }
           });
         } else {
-          logger.info('Want to make a conditional request, but not possible. Data must be requested from the origin server.',
+          logger.info('Want to make a conditional request, but not possible.',
                   req.url);
 
           requestServer(req, (originRes) => {
             /* Send data to client */
-            res.writeHead(200, originRes.headers);
-            //res.writeHead(originRes.statusCode, originRes.headers);
+            //res.writeHead(200, originRes.headers);
+            res.writeHead(originRes.statusCode, originRes.headers);
+            logger.debug(originRes.statusCode);
             originRes.pipe(res, {end: true});
 
             logger.success('Reply sent to client.', req.url);
@@ -139,8 +110,7 @@ const ProxyServer = http.createServer((req, res) => {
   } else {
     requestServer(req, (originRes) => {
       /* Send data to client */
-      res.writeHead(200, originRes.headers);
-      //res.writeHead(originRes.statusCode, originRes.headers);
+      res.writeHead(originRes.statusCode, originRes.headers);
       originRes.pipe(res, {end: true});
 
       logger.success('Reply sent to client.', req.url);
@@ -150,7 +120,7 @@ const ProxyServer = http.createServer((req, res) => {
 
 
 
-
+console.log(ProxyServer.useCache);
 
 
 /**
@@ -184,7 +154,10 @@ function requestServerConditional(req, etag, fn) {
       logger.error(`Problem with request: ${err.message}`, req.url);
     });
 
-    proxy.end(); // TODO
+
+    /* Send no body data to the origin server.
+       We only want to check possible changes to our cache */
+    proxy.end();
   } else {
     /* TODO */
     /* It could be possible that the method is not cachable.... */
