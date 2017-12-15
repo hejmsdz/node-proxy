@@ -10,16 +10,16 @@ const rootFolder = require('app-root-path');
 
 
 
-const logFile = fs.createWriteStream(
+/*const logFile = fs.createWriteStream(
                 `${rootFolder}/logs/logs.log`,
-                {flag: 'w'});
-const logger = new Log(logFile);
+                {flag: 'w'});*/
+const logger = new Log(process.stdout);
 
 
 
 
 /* Configuration variables. */
-let useCache = false;
+let useCache = true;
 let isReverse = false;
 let cacheConfig = {
   'headerFileSuffix': '.headers',
@@ -120,7 +120,6 @@ const ProxyServer = http.createServer((req, res) => {
 
 
 
-console.log(ProxyServer.useCache);
 
 
 /**
