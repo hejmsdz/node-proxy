@@ -1,11 +1,14 @@
 const { Transform } = require('stream');
 const fs = require('fs');
 const CacheHelper = require('./CacheHelper');
+const Log = require('../Log');
+
+const logger = new Log(process.stdout);
 
 /**
  * Esta clase funciona como flujo de entrada y salida
  * que escribe todo el contenido y cabeceras recibidas
- * en ficheros correspondientes en la carpeta cacShe
+ * en ficheros correspondientes en la carpeta cache
  * y también lo devuelve para que se pueda pasar adelante.
  * Uso: mediante stream.pipe()
  */
@@ -16,10 +19,15 @@ class CacheWriter extends Transform {
    * @param {string} url URL del objeto
    * @param {http.IncomingMessage} res respuesta HTTP
    */
-  constructor(url, res) {
+  constructor(url, res, cacheConfig) {
     super();
 
+    this.headerFileSuffix = cacheConfig.headerFileSuffix;
+    this.bodyFileSuffix = cacheConfig.bodyFileSuffix;
+    this.folder = cacheConfig.folder;
     this.url = url;
+
+    this.cacheHelper = new CacheHelper();
 
     this._writeHeaders(res.headers);
     this._createOutFile();
@@ -30,15 +38,19 @@ class CacheWriter extends Transform {
 
   _writeHeaders(headers) {
     const headersJSON = JSON.stringify(headers);
-    const headersFilename = CacheHelper.fullFilename(this.url, '.headers');
-    fs.writeFile(headersFilename, headersJSON, () => {});
+    const headersFilename = CacheHelper.fullFilename(this.folder, this.url, this.headerFileSuffix);
+    fs.writeFile(headersFilename, headersJSON, (err) => {
+      if(err) {
+        logger.debug(err);
+      }
+    });
   }
 
   _createOutFile() {
-    const bodyFilename = CacheHelper.fullFilename(this.url, '.body');
+    const bodyFilename = CacheHelper.fullFilename(this.folder, this.url, this.bodyFileSuffix);
     this.outFile = fs.createWriteStream(bodyFilename);
     this.outFile.on('errer', (err) => {
-      console.log(err);
+      logger.debug(err);
     })
   }
 

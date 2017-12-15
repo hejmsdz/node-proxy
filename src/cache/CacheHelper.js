@@ -1,8 +1,10 @@
 const crypto = require('crypto');
-
+const Log = require('../Log.js')
+const rootFolder = require('app-root-path');
 
  /**
   * This class contains a few useful functions.
+  * TODO: Mache diese Klasse nicht statisch, sodass man die Konfiguration nur einmal laden muss.
   */
 class CacheHelper {
   /**
@@ -17,11 +19,9 @@ class CacheHelper {
     return sha1.digest('hex');
   }
 
-  static fullFilename(url, extension) {
-    return CacheHelper.cachePrefix + CacheHelper.getFilename(url) + extension;
+  static fullFilename(folder, url, extension) {
+    return `${rootFolder}${folder}${CacheHelper.getFilename(url)}${extension}`;
   }
 }
-
-CacheHelper.cachePrefix = `${__dirname}/../../cache/`;
 
 module.exports = CacheHelper;

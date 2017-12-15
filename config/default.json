@@ -1,0 +1,27 @@
+{
+   "server": {
+      "port": 8080,
+      "useCache": true,
+      "isReverse": false
+   },
+   "cache": {
+      "folder": "/cache/",
+      "headerFileSuffix": ".headers",
+      "bodyFileSuffix": ".body"
+   },
+   "log": {
+      "deleteFrecuency": 1,
+      "debug": {
+         "prefix": "[DEBUG]",
+         "show": true
+      },
+      "error": {
+         "prefix": "[ERROR]",
+         "show": true
+      },
+      "info": {
+         "prefix": "[INFO]",
+         "show": true
+      }
+   }
+}

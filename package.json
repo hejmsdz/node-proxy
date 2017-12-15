@@ -12,5 +12,12 @@
   },
   "devDependencies": {
     "jasmine": "^2.8.0"
+  },
+  "dependencies": {
+    "app-root-path": "^2.0.1",
+    "chalk": "^2.3.0",
+    "commander": "^2.12.2",
+    "config": "^1.28.1",
+    "json-beautify": "^1.0.1"
   }
 }

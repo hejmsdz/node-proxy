@@ -1,4 +1,5 @@
 const fs = require('fs');
+const chalk = require('chalk');
 
 /**
  * The class Log allows to create log messages.
@@ -6,6 +7,14 @@ const fs = require('fs');
  * Facilitates error handling.
  **/
 class Log {
+  constructor(writeableStream) {
+    this.writableStream = writeableStream;
+
+    this.infoPrefix = '[Info]';
+    this.errorPrefix = (writeableStream == process.stdout) ? chalk.red('[Error]') : '[Error]';
+    this.debugPrefix = (writeableStream == process.stdout) ? chalk.blue('[Debug]') : '[Debug]';
+    this.successPrefix = (writeableStream == process.stdout) ? chalk.green('[Success]') : '[Success]';
+  }
 
   /**
    * This function concatenate appropriately a variable amount
@@ -13,9 +22,9 @@ class Log {
    * @param {string} a Arguments to concatenate
    * @returns {string} concatenation of arguments
    */
-  static createLogMessage(/* a1, a2, a3, ... */) {
-    let message = Log.prefix;
-    for (var i = 0; i < arguments.length; i++) {
+  createMessage(prefix /* ..., a1, a2, a3, ... */) {
+    let message = prefix;
+    for (var i = 1; i < arguments.length; i++) {
       if(arguments[i] !== undefined) {
         message += ` ${arguments[i]}`;
       }
@@ -25,48 +34,52 @@ class Log {
   }
 
   /**
-   * This function logs a message to a log file.
-   * So that the log files are not too big, a new log file is created every day.
-   * @param {string} message Message to log
-   * @param {string} [url] Optional message to better identify log messages
+   * TODO
    */
-  static logToFile(message, url) {
-    const today = new Date();
-    const dd = today.getDate();
-    const mm = today.getMonth()+1;
-    const yyyy = today.getFullYear();
-    const fileName = `${dd}-${mm}-${yyyy}`;
-
-    const fullFilename = Log.filePrefix + fileName + Log.fileSuffix;
-
+  error(message, url) {
     if(url !== undefined) {
       url = `(${url})`;
     }
 
-    fs.appendFile(fullFilename, Log.createLogMessage(message, url), (err) => {
-      if(err) {
-        console.error('[Log] Cannot log a message.');
-      }
-    });
+    this.writableStream.write(this.createMessage(this.errorPrefix, message, url));
   }
 
   /**
-   * This function logs a message to the console.
-   * @param {string} message Message to log
-   * @param {string} [url] Optional message to better identify log messages
+   * TODO
    */
-  static logToConsole(message, url) {
+  info(message, url) {
     if(url !== undefined) {
       url = `(${url})`;
     }
 
-    console.log(Log.createLogMessage(message, url));
+    this.writableStream.write(this.createMessage(this.infoPrefix, message, url));
+  }
+
+  /**
+   * TODO
+   */
+  debug(message, url) {
+    if(url !== undefined) {
+      url = `(${url})`;
+    }
+
+    this.writableStream.write(this.createMessage(this.debugPrefix, message, url));
+  }
+
+  /**
+   * TODO
+   */
+  success(message, url) {
+    if(url !== undefined) {
+      url = `(${url})`;
+    }
+
+    this.writableStream.write(this.createMessage(this.successPrefix, message, url));
   }
 }
 
 /* Some useful variables */
 Log.filePrefix = `${__dirname}/../logs/`;
 Log.fileSuffix = '.log';
-Log.prefix = '[Log]';
 
 module.exports = Log;

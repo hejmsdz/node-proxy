@@ -3,15 +3,18 @@ const crypto = require('crypto');
 const CacheHelper = require('./CacheHelper');
 const Log = require('../Log.js');
 
+const logger = new Log(process.stdout);
 
 /**
  * This class manages the access to cached files.
  */
 class CacheReader {
-  constructor(url) {
+  constructor(url, cacheConfig) {
     this.url = url;
-    this.headersFilename = CacheHelper.fullFilename(url, '.headers');
-    this.bodyFilename = CacheHelper.fullFilename(url, '.body');
+    this.headersFilename = CacheHelper.fullFilename(cacheConfig.folder, url, cacheConfig.headerFileSuffix);
+    this.bodyFilename = CacheHelper.fullFilename(cacheConfig.folder, url, cacheConfig.bodyFileSuffix);
+    logger.debug(this.headersFilename);
+    logger.debug(this.bodyFilename);
   }
 
   /**
@@ -29,8 +32,8 @@ class CacheReader {
   getHeaders(cb) {
     fs.readFile(this.headersFilename, (err, headers) => {
       if(err) {
+        logger.debug('Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
         cb(true, null);
-        Log.logToFile('Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
       } else {
         cb(false, JSON.parse(headers));
       }
@@ -78,10 +81,12 @@ class CacheReader {
     if(this.isCached()) {
       this.getHeaders((err, headers) => {
         if(err) {
+          logger.debug('Cached files do not exist.', this.url);
           cb(true,null,null);
         } else {
           const bodyStream = this.getBodyStream();
           bodyStream.on('error', (err) => {
+            logger.debug('Problem with the bodyStream.', this.url);
             cb(true, null, null);
             return;
           });
@@ -90,6 +95,7 @@ class CacheReader {
         }
       });
     } else {
+      logger.debug('useCache: Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
       cb(true, null, null);
       return;
     }
