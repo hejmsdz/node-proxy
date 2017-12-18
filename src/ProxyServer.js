@@ -60,21 +60,42 @@ class ProxyServer extends http.Server {
   }
 
   checkFreshness(req, cachedHeaders, onModified, onNotModified) {
-    let lastModified = cachedHeaders['last-modified'] || cachedHeaders['date'];
-    if (!lastModified) {
-      return onNotModified();
+    const cacheCtrl = cachedHeaders['cache-control'] || '';
+    if (cacheCtrl.indexOf('must-revalidate') == -1 || cacheCtrl.indexOf('no-cache') == -1) {
+      // headers allow returning it even without a conditional request,
+      // if the resource didn't expire
+      let expired = null;
+      if (cachedHeaders['expires']) {
+        expired = Date.now() >= Date.parse(cachedHeaders['expires']);
+      }
+      let match;
+      if (expired == null && (match = cacheCtrl.match(/max-age=(\d+)/))) {
+        let maxAge = parseInt(match[1]) * 1000; // convert to milliseconds
+        expired = Date.now() >= Date.parse(cachedHeaders['date']) + maxAge;
+      }
+      if (!expired) {
+        logger.debug('Fresh');
+        return onNotModified();
+      }
     }
 
-    logger.info(`Conditional[${lastModified}]`, req.url);
+    let condHeaders = {};
+    if (cachedHeaders['last-modified']) {
+      condHeaders['if-modified-since'] = cachedHeaders['last-modified'];
+    }
+    if (cachedHeaders['etag']) {
+      condHeaders['if-none-match'] = cachedHeaders['etag'];
+    }
+
     requestServer(req, (originRes) => {
       if (originRes.statusCode == 304) {
         logger.debug('Not modified');
         onNotModified();
       } else {
-        logger.debug('Modified');
+        logger.debug('Stale');
         onModified(originRes);
       }
-    }, {'if-modified-since': lastModified});
+    }, condHeaders);
   }
 
   requestAndPass(req, res, writeToCache) {

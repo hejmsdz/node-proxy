@@ -37,6 +37,9 @@ class CacheWriter extends Transform {
   }
 
   _writeHeaders(headers) {
+    if (!headers['date']) {
+      headers['date'] = new Date(Date.now()).toString();
+    }
     const headersJSON = JSON.stringify(headers);
     const headersFilename = CacheHelper.fullFilename(this.folder, this.url, this.headerFileSuffix);
     fs.writeFile(headersFilename, headersJSON, (err) => {
