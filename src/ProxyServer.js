@@ -4,201 +4,118 @@ const CacheWriter = require('./cache/CacheWriter');
 const CacheReader = require('./cache/CacheReader');
 const IsCacheable = require('./cache/IsCacheable');
 const Log = require('./Log');
-const fs = require('fs');
 const rootFolder = require('app-root-path');
 
-
-
-
-/*const logFile = fs.createWriteStream(
-                `${rootFolder}/logs/logs.log`,
-                {flag: 'w'});*/
 const logger = new Log(process.stdout);
 
-
-
-
 /* Configuration variables. */
-let useCache = true;
-let isReverse = false;
 let cacheConfig = {
   'headerFileSuffix': '.headers',
   'bodyFileSuffix': '.body',
   'folder': '/cache/'
 };
 
-
-
-
-
-
 /**
  * The proxy server retrieves requests from clients, forwards them to
  * a remote server, and returns a response to the client. In this process,
  * the proxy server can act as a cache server and cache certain data.
  **/
-const ProxyServer = http.createServer((req, res) => {
-  logger.info('Client requested data.', req.url);
+class ProxyServer extends http.Server {
+  constructor(useCache) {
+    super();
 
-  if(useCache) {
-    const cacheReader = new CacheReader(req.url, cacheConfig);
+    this.useCache = useCache;
+    this.on('request', this.handleRequest);
+  }
 
-    /* Check if the requested file is already in the cache (no error) or react accordingly */
-    cacheReader.useCache((err, cachedHeaders, cachedBodyStream) => {
-      if(err) {
-        /* Nothing found in the cache: Make a normal request */
-        logger.info('Cannot use the cache.', req.url);
+  handleRequest(req, res) {
+    logger.info('Incoming request:', req.url);
 
-        requestServer(req, (originRes) => {
-          /* Send data to client */
-          res.writeHead(originRes.statusCode, originRes.headers);
-          originRes.pipe(res, {end: true});
+    if (this.useCache) {
+      const cacheReader = new CacheReader(req.url, cacheConfig);
 
-          logger.debug(originRes.statusCode);
-          logger.success('Reply sent to client.', req.url);
-        });
-      } else {
-        /* File found on the cache. Now lets find out if it is up-to-date
-           via a conditional request which uses the ETag */
-
+      /* Check if the requested file is already in the cache (no error) or react accordingly */
+      cacheReader.useCache((cachedHeaders, cachedBodyStream) => {
+        /* Requested URL found in the cache */
         logger.info('Found data in the cache.', req.url);
 
-        /* Conditional request only possible when the headers file contains
-           information like the etag because the actuality can of course only
-           be checked if we have something to compare. */
-        if(cachedHeaders.hasOwnProperty('etag')) {
-          requestServerConditional(req, cachedHeaders.etag, (condOriginRes) => {
-            if(condOriginRes.statusCode == "200") {
-              /* Modified */
-              logger.info('Cache is modified. Received updated files.', req.url);
+        this.checkFreshness(req, cachedHeaders, (originRes) => {
+          /* New, modified data received */
+          this.passResponse(res, originRes, new CacheWriter(req.url, originRes, cacheConfig));
+        }, () => {
+          /* Not modified */
+          this.passResponse(res, Object.assign(cachedBodyStream, {
+            statusCode: 200,
+            headers: cachedHeaders
+          }));
+        });
+      }, () => {
+        /* Nothing found in the cache: Make a normal request and cache the result if possible. */
+        logger.info('Cache miss', req.url);
+        this.requestAndPass(req, res, true);
+      });
+    } else {
+      this.requestAndPass(req, res);
+    }
+  }
 
-              /* Send data to client */
-              logger.debug(condOriginRes.statusCode);
-              res.writeHead(condOriginRes.statusCode, condOriginRes.headers); // NOT TESTED YET
-              condOriginRes.pipe(res, {end: true});
+  checkFreshness(req, cachedHeaders, onModified, onNotModified) {
+    let lastModified = cachedHeaders['last-modified'] || cachedHeaders['date'];
+    if (!lastModified) {
+      return onNotModified();
+    }
 
-              logger.success('Reply sent to client.', req.url);
-            } else if(condOriginRes.statusCode == "304") {
-              /* Not Modified */
-              logger.info('Cache is not modified.', req.url);
-
-              /* Send data to client */
-              res.writeHead(200, cachedHeaders); // Problem: The headers file dont save the statuscode. Should we use 200?
-              cachedBodyStream.pipe(res, {end: true});
-
-              logger.success('Cached reply sent to client.', req.url);
-            } else {
-              logger.error('TODO: React accordingly on a wrong statusCode.', req.url);
-            }
-          });
-        } else {
-          logger.info('Want to make a conditional request, but not possible.',
-                  req.url);
-
-          requestServer(req, (originRes) => {
-            /* Send data to client */
-            //res.writeHead(200, originRes.headers);
-            res.writeHead(originRes.statusCode, originRes.headers);
-            logger.debug(originRes.statusCode);
-            originRes.pipe(res, {end: true});
-
-            logger.success('Reply sent to client.', req.url);
-          });
-        }
-      }
-    });
-  } else {
+    logger.info(`Conditional[${lastModified}]`, req.url);
     requestServer(req, (originRes) => {
-      /* Send data to client */
-      res.writeHead(originRes.statusCode, originRes.headers);
-      originRes.pipe(res, {end: true});
+      if (originRes.statusCode == 304) {
+        logger.debug('Not modified');
+        onNotModified();
+      } else {
+        logger.debug('Modified');
+        onModified(originRes);
+      }
+    }, {'if-modified-since': lastModified});
+  }
 
-      logger.success('Reply sent to client.', req.url);
+  requestAndPass(req, res, writeToCache) {
+    logger.info('Send a request to origin server.', req.url);
+    requestServer(req, (originRes) => {
+      let pipeThrough = null;
+      if (writeToCache && IsCacheable(req, originRes)) {
+        pipeThrough = new CacheWriter(req.url, originRes, cacheConfig);
+      }
+      this.passResponse(res, originRes, pipeThrough);
     });
   }
-});
 
-
-
-
-
-/**
- * Send a HTTP condicional request to a server and sends the response
- * as a <http.ServerResponse> to the callback function
- * @param {http.IncomingMessage} req request of the client
- * @param {string} etag the etag for insterting in the header
- * @param {function} fn callback function
- */
-function requestServerConditional(req, etag, fn) {
-  logger.info('Send a conditional request to origin server.', req.url);
-
-  if(IsCacheable()) {
-    const url = new URL(req.url);
-    const modHeaders = req.headers;
-    modHeaders["If-None-Match"] = etag;
-
-    const options = {
-      hostname: url.hostname,
-      port: url.port,
-      path: url.pathname + url.search,
-      method: req.method,
-      headers: modHeaders
-    };
-
-    const proxy = http.request(options, (res) => {
-      fn(res);
-    });
-
-    proxy.on('error', (err) => {
-      logger.error(`Problem with request: ${err.message}`, req.url);
-    });
-
-
-    /* Send no body data to the origin server.
-       We only want to check possible changes to our cache */
-    proxy.end();
-  } else {
-    /* TODO */
-    /* It could be possible that the method is not cachable.... */
-    logger.error('Todo: Not possible to cache.', req.url);
+  passResponse(res, originRes, pipeThrough = null) {
+    let sendBack = originRes;
+    res.writeHead(originRes.statusCode, originRes.headers);
+    if (pipeThrough !== null) {
+      sendBack = originRes.pipe(pipeThrough, {end: true});
+    }
+    sendBack.pipe(res, {end: true});
   }
 }
-
-
-
-
-
 
 /**
  * Send a HTTP request to a server and sends the response
  * as a <http.ServerResponse> to the callback function
  * @param {http.IncomingMessage} req request of the client
- * @param {string} etag the etag for insterting in the header
+ * @param {Object} moreHeaders additional request headers
  * @returns {function} fn callback function
  */
-function requestServer(req, fn) {
-  logger.info('Send a request to origin server.', req.url);
-
+function requestServer(req, fn, moreHeaders = {}) {
   const url = new URL(req.url);
   const options = {
     hostname: url.hostname,
     port: url.port,
     path: url.pathname + url.search,
     method: req.method,
-    headers: req.headers
+    headers: Object.assign(req.headers, moreHeaders)
   };
 
-  const proxy = http.request(options, function (proxyRes) {
-    //let sendBack = proxyRes;
-    if (IsCacheable() && useCache) {
-      let cacheWriter = new CacheWriter(req.url, proxyRes, cacheConfig);
-      sendBack = proxyRes.pipe(cacheWriter, {end: false});
-
-      logger.info('Cached successfully data.', req.url);
-    }
-
-    fn(proxyRes); // TODO? Das ist der Grund wieso es geht? Eigewntlich muss sendback hier hin
-  });
+  const proxy = http.request(options, fn);
 
   proxy.on('error', (err) => {
     logger.error(`Problem with request: ${err.message}`, req.url);
@@ -207,12 +124,8 @@ function requestServer(req, fn) {
   req.pipe(proxy, {
     end: true
   }).on('error', (err) => {
-      logger.error(`Problem with request: ${err.message}`, req.url);
+    logger.error(`Problem with request: ${err.message}`, req.url);
   });
 }
-
-
-
-
 
 module.exports = ProxyServer;

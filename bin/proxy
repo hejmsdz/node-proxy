@@ -2,7 +2,6 @@
 
 const program = require('commander');
 const ProxyServer = require('../src/ProxyServer.js');
-const fs = require('fs');
 
 let port = 8080;
 
@@ -13,7 +12,6 @@ program
   .version('0.0.1')
   .option('-p, --port <n>', 'Use a specific port', parseInt)
   .option('-c, --cache', 'Cache responses from origin server')
-  .option('-r, --reverse', 'Use proxy as reverse proxy')
   .parse(process.argv);
 
 if(program.port) {
@@ -23,28 +21,21 @@ if(program.port) {
     process.exit(1);
   }
 }
-
-if(program.cache) {
-  // TODO
-}
-
-if(program.reverse) {
-  // TODO
-}
-
 /**
  * Start the proxy server
  **/
-ProxyServer.listen(port, () => {
+const proxy = new ProxyServer(program.cache);
+
+proxy.listen(port, () => {
   console.log(`Listening on port ${port}. Press Ctrl+C to exit.`);
 
   process.on('SIGINT', () => {
     console.log('\nClosing the server.');
-    ProxyServer.close();
+    proxy.close();
   });
 });
 
-ProxyServer.on('error', (err) => {
+proxy.on('error', (err) => {
   console.log('[Error] There was a fatal error.');
-  ProxyServer.close();
+  proxy.close();
 });

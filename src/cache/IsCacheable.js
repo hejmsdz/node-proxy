@@ -2,14 +2,18 @@
  * Determinar si una respuesta HTTP se puede almacenar en la caché.
  */
 function IsCacheable(req, res) {
-  const cacheControl = (res.headers['cache-control'] || '').split(', ');
-
   // por simplicidad sólo respuestas 200 OK y el método GET
-  if (res.statusCode != 200) {
+  if (req.method != 'GET') {
     return false;
   }
 
-  if (res.method != 'GET') {
+  if (res == null) {
+    return true;
+  }
+
+  const cacheControl = (res.headers['cache-control'] || '').split(', ');
+
+  if (res.statusCode != 200) {
     return false;
   }
 

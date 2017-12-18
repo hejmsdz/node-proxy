@@ -4,12 +4,14 @@ const helpers = require('./helpers/helpers.js');
 
 describe('Basic proxy server', () => {
   let port = 8084;
+  let proxy;
   beforeAll(() => {
-    ProxyServer.listen(port);
+    proxy = new ProxyServer(false);
+    proxy.listen(port);
   });
 
   afterAll(() => {
-    ProxyServer.close();
+    proxy.close();
   });
 
   describe('a simple GET request', () => {

@@ -65,38 +65,36 @@ class CacheReader {
   * and body of a cached files or to react accordingly
   * if no access is possible.
   *
-  * Returns an error if the file is not cached or can not be accessed.
-  *
   * @callback cacheCallback
-  * @param {boolean} errorFlag
   * @param {object} headersObject
   * @param {readStream} bodyReadStream
   **/
 
   /**
    * This function tries to access a cached file and executes the callback on completion.
-   * @param {cacheCallback} cb - The callback that handles the access.
+   * @param {cacheCallback} onCacheHit - The callback that handles the access if file is found
+   * @param {Function} onCacheHit - The callback that is run otherwise
    **/
-  useCache(cb) {
+  useCache(onCacheHit, onCacheMiss) {
     if(this.isCached()) {
       this.getHeaders((err, headers) => {
         if(err) {
           logger.debug('Cached files do not exist.', this.url);
-          cb(true,null,null);
+          onCacheMiss();
         } else {
           const bodyStream = this.getBodyStream();
           bodyStream.on('error', (err) => {
             logger.debug('Problem with the bodyStream.', this.url);
-            cb(true, null, null);
+            onCacheMiss();
             return;
           });
 
-          cb(false, headers, bodyStream);
+          onCacheHit(headers, bodyStream);
         }
       });
     } else {
       logger.debug('useCache: Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
-      cb(true, null, null);
+      onCacheMiss();
       return;
     }
   }
