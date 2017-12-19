@@ -31,9 +31,6 @@ class CacheWriter extends Transform {
 
     this._writeHeaders(res.headers);
     this._createOutFile();
-    this.on('end', () => {
-      this.outFile.close();
-    });
   }
 
   _writeHeaders(headers) {

@@ -105,7 +105,11 @@ class ProxyServer extends http.Server {
     requestServer(req, (originRes) => {
       let pipeThrough = null;
       if (writeToCache && IsCacheable(req, originRes)) {
-        pipeThrough = new CacheWriter(req.url, originRes, cacheConfig);
+        try {
+          pipeThrough = new CacheWriter(req.url, originRes, cacheConfig);
+        } catch (e) {
+          logger.error('olaboga', e);
+        }
       }
       this.passResponse(res, originRes, pipeThrough);
     });
