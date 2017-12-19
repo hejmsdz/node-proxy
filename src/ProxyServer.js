@@ -29,7 +29,7 @@ class ProxyServer extends http.Server {
   }
 
   handleRequest(req, res) {
-    logger.info('Incoming request:', req.url);
+    logger.info('Incoming request', req.url);
 
     if (this.useCache) {
       const cacheReader = new CacheReader(req.url, cacheConfig);
@@ -40,10 +40,10 @@ class ProxyServer extends http.Server {
         logger.info('Found data in the cache.', req.url);
 
         this.checkFreshness(req, cachedHeaders, (originRes) => {
-          /* New, modified data received */
+          logger.info('New, modified data received', req.url);
           this.passResponse(res, originRes, new CacheWriter(req.url, originRes, cacheConfig));
         }, () => {
-          /* Not modified */
+          logger.info('Not modified', req.url);
           this.passResponse(res, Object.assign(cachedBodyStream, {
             statusCode: 200,
             headers: cachedHeaders
@@ -74,7 +74,7 @@ class ProxyServer extends http.Server {
         expired = Date.now() >= Date.parse(cachedHeaders['date']) + maxAge;
       }
       if (!expired) {
-        logger.debug('Fresh');
+        logger.debug('Not expired cache.');
         return onNotModified();
       }
     }
@@ -86,6 +86,8 @@ class ProxyServer extends http.Server {
     if (cachedHeaders['etag']) {
       condHeaders['if-none-match'] = cachedHeaders['etag'];
     }
+
+    logger.info('Conditional request to origin server.', req.url);
 
     requestServer(req, (originRes) => {
       if (originRes.statusCode == 304) {
@@ -114,8 +116,11 @@ class ProxyServer extends http.Server {
     res.writeHead(originRes.statusCode, originRes.headers);
     if (pipeThrough !== null) {
       sendBack = originRes.pipe(pipeThrough, {end: true});
+      logger.info('Cached data.', sendBack.url);
     }
     sendBack.pipe(res, {end: true});
+
+    logger.success('Replied the client.', sendBack.url);
   }
 }
 

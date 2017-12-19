@@ -6,6 +6,12 @@ const chalk = require('chalk');
  **/
 class Log {
   constructor(writeableStream) {
+
+    this.debugMode = false;
+    if(process.env.DEBUG) {
+      this.debugMode= true;
+    }
+
     this.writableStream = writeableStream;
 
     this.infoPrefix = '[Info]';
@@ -61,7 +67,9 @@ class Log {
       url = `(${url})`;
     }
 
-    this.writableStream.write(this.createMessage(this.debugPrefix, message, url));
+    if(this.debugMode) {
+      this.writableStream.write(this.createMessage(this.debugPrefix, message, url));
+    }
   }
 
   /**

@@ -32,7 +32,7 @@ class CacheReader {
   getHeaders(cb) {
     fs.readFile(this.headersFilename, (err, headers) => {
       if(err) {
-        logger.debug('Fehler beim Versuch die Headerdatei zu öffnen.', this.url);
+        logger.debug('Not possible to open the headers file.', this.url);
         cb(true, null);
       } else {
         cb(false, JSON.parse(headers));
