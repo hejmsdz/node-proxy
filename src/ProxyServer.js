@@ -28,6 +28,10 @@ class ProxyServer extends http.Server {
     this.on('request', this.handleRequest);
   }
 
+
+  /**
+   * This function is executed when the client sends a request to our proxy server.
+   **/
   handleRequest(req, res) {
     logger.info('Incoming request', req.url);
 
@@ -59,6 +63,27 @@ class ProxyServer extends http.Server {
     }
   }
 
+
+  /**
+  * This callback is executed if the cache is not up-to-date.
+  *
+  * @callback onModified
+  * @param originRes - The response of the origin server
+  **/
+
+  /**
+  * This callback is executed if the cache is up-to-date.
+  *
+  * @callback onNotModified
+  **/
+
+  /**
+   * This function tests if the cache is up to date and we can use it.
+   * @param {ReadableStream} req - The request of the client
+   * @param {Object} cachedHeaders
+   * @param {Function} onModified
+   * @param {Function} onNotModified
+   **/
   checkFreshness(req, cachedHeaders, onModified, onNotModified) {
     const cacheCtrl = cachedHeaders['cache-control'] || '';
     if (cacheCtrl.indexOf('must-revalidate') == -1 || cacheCtrl.indexOf('no-cache') == -1) {
@@ -100,6 +125,13 @@ class ProxyServer extends http.Server {
     }, condHeaders);
   }
 
+  /**
+   * This function makes a request to the origin server and
+   * pases the response to the client
+   * @param {ReadableStream} req - The request of the client
+   * @param res
+   * @param {boolean} writeToCache - If true, then the response is stored in the cache
+   **/
   requestAndPass(req, res, writeToCache) {
     logger.info('Send a request to origin server.', req.url);
     requestServer(req, (originRes) => {
@@ -108,13 +140,20 @@ class ProxyServer extends http.Server {
         try {
           pipeThrough = new CacheWriter(req.url, originRes, cacheConfig);
         } catch (e) {
-          logger.error('olaboga', e);
+          logger.error('Not possible to write to cache.', e);
         }
       }
       this.passResponse(res, originRes, pipeThrough);
     });
   }
 
+
+  /**
+   * This function pases the response to the client
+   * @param res - The response to the client
+   * @param originRes - The response from the origin server
+   * @param {WriteableStream} pipeThrough - The possible passed CacheWriter
+   **/
   passResponse(res, originRes, pipeThrough = null) {
     let sendBack = originRes;
     res.writeHead(originRes.statusCode, originRes.headers);

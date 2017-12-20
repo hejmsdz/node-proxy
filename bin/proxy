@@ -21,6 +21,7 @@ if(program.port) {
     process.exit(1);
   }
 }
+
 /**
  * Start the proxy server
  **/

@@ -4,7 +4,6 @@ const rootFolder = require('app-root-path');
 
  /**
   * This class contains a few useful functions.
-  * TODO: Mache diese Klasse nicht statisch, sodass man die Konfiguration nur einmal laden muss.
   */
 class CacheHelper {
   /**

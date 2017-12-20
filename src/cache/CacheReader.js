@@ -61,19 +61,23 @@ class CacheReader {
 
 
   /**
-  * The callback function allows to access the header
-  * and body of a cached files or to react accordingly
-  * if no access is possible.
+  * The callback that handles the access if file is found
   *
-  * @callback cacheCallback
-  * @param {object} headersObject
-  * @param {readStream} bodyReadStream
+  * @callback onCacheHit
+  * @param {object} cachedHeaders
+  * @param {readStream} cachedBodyStream
+  **/
+
+  /**
+  * The callback that is run otherwise
+  *
+  * @callback onCacheMiss
   **/
 
   /**
    * This function tries to access a cached file and executes the callback on completion.
-   * @param {cacheCallback} onCacheHit - The callback that handles the access if file is found
-   * @param {Function} onCacheHit - The callback that is run otherwise
+   * @param {Function} onCacheHit
+   * @param {Function} onCacheMiss
    **/
   useCache(onCacheHit, onCacheMiss) {
     if(this.isCached()) {

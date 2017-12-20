@@ -37,9 +37,6 @@ class Log {
     return message;
   }
 
-  /**
-   * TODO
-   */
   error(message, url) {
     if(url !== undefined) {
       url = `(${url})`;
@@ -48,9 +45,6 @@ class Log {
     this.writableStream.write(this.createMessage(this.errorPrefix, message, url));
   }
 
-  /**
-   * TODO
-   */
   info(message, url) {
     if(url !== undefined) {
       url = `(${url})`;
@@ -59,9 +53,6 @@ class Log {
     this.writableStream.write(this.createMessage(this.infoPrefix, message, url));
   }
 
-  /**
-   * TODO
-   */
   debug(message, url) {
     if(url !== undefined) {
       url = `(${url})`;
@@ -72,9 +63,6 @@ class Log {
     }
   }
 
-  /**
-   * TODO
-   */
   success(message, url) {
     if(url !== undefined) {
       url = `(${url})`;
